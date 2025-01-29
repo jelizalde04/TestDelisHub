@@ -38,6 +38,21 @@ const UserProfilePage = () => {
     fetchUserProfile();
   }, [user]);
 
+  const handleEditRecipe = (recipeId) => {
+    navigate(`/recipes/edit/${recipeId}`);
+  };
+
+  const handleDeleteRecipe = async (recipeId) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta receta?')) {
+      try {
+        await apiClient.delete(`/recipes/${recipeId}`);
+        setRecipes((prev) => prev.filter((recipe) => recipe.id !== recipeId));
+      } catch (error) {
+        console.error('Error al eliminar la receta:', error);
+      }
+    }
+  };
+
   const handleAddComment = async (recipeId, content) => {
     try {
       const response = await apiClient.post('/comments', { recipeId, content });
@@ -104,10 +119,6 @@ const UserProfilePage = () => {
     setEditContent(comment.content);
   };
 
-  const handleNavigateToFeed = () => {
-    navigate('/dashboard');
-  };
-
   if (loading) {
     return <div className="text-center mt-5">Cargando recetas...</div>;
   }
@@ -118,7 +129,7 @@ const UserProfilePage = () => {
       <div className="text-center mb-4">
         <button
           className="btn btn-outline-primary btn-lg fw-bold rounded-pill px-4 shadow-sm"
-          onClick={handleNavigateToFeed}
+          onClick={() => navigate('/dashboard')}
           style={{
             fontSize: '1.25rem',
             letterSpacing: '0.5px',
@@ -145,29 +156,42 @@ const UserProfilePage = () => {
         ) : (
           recipes.map((recipe) => (
             <div key={recipe.id} className="col-md-8 mb-4">
-              <div className="card shadow-sm border-0">
+              <div className="card shadow-lg border-0 rounded-lg">
+                <div className="card-header d-flex justify-content-between align-items-center bg-light">
+                  <h4 className="text-primary mb-0 fw-bold">{recipe.title}</h4>
+                  <div>
+                    <button
+                      className="btn btn-primary btn-sm me-2 rounded-pill shadow-sm"
+                      onClick={() => handleEditRecipe(recipe.id)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm rounded-pill shadow-sm"
+                      onClick={() => handleDeleteRecipe(recipe.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
                 <div className="card-body">
-                  <h5 className="card-title text-primary fw-bold">{recipe.title}</h5>
-                  <p className="card-text text-muted">{recipe.description}</p>
-                  <p className="small text-muted">
+                  <p className="text-muted small mb-2">
                     <strong>Publicado por:</strong> {recipe.user?.username || 'Desconocido'} -{' '}
                     {formatDistanceToNow(new Date(recipe.createdAt), { locale: es })}
                   </p>
-                  <hr />
-                  <h6 className="fw-bold text-secondary">Ingredientes:</h6>
+                  <h6 className="fw-bold text-secondary mt-4">Ingredientes:</h6>
                   <ul className="list-unstyled ps-3">
                     {recipe.ingredients.map((ingredient, index) => (
-                      <li key={index}>• {ingredient}</li>
+                      <li key={index} className="mb-1">• {ingredient}</li>
                     ))}
                   </ul>
-                  <h6 className="fw-bold text-secondary">Pasos:</h6>
+                  <h6 className="fw-bold text-secondary mt-4">Pasos:</h6>
                   <ol className="ps-3">
                     {recipe.steps.map((step, index) => (
-                      <li key={index}>{step}</li>
+                      <li key={index} className="mb-1">{step}</li>
                     ))}
                   </ol>
-                  <hr />
-                  <h6 className="fw-bold text-secondary">Comentarios:</h6>
+                  <h6 className="fw-bold text-secondary mt-4">Comentarios:</h6>
                   {recipe.Comments.map((comment) => (
                     <div
                       key={comment.id}
@@ -183,7 +207,7 @@ const UserProfilePage = () => {
                           ></textarea>
                           <div className="mt-2">
                             <button
-                              className="btn btn-success btn-sm me-2"
+                              className="btn btn-primary btn-sm me-2 rounded-pill shadow-sm"
                               onClick={() =>
                                 handleEditComment(recipe.id, comment.id, editContent)
                               }
@@ -191,7 +215,7 @@ const UserProfilePage = () => {
                               Guardar
                             </button>
                             <button
-                              className="btn btn-secondary btn-sm"
+                              className="btn btn-secondary btn-sm rounded-pill shadow-sm"
                               onClick={() => setEditingComment(null)}
                             >
                               Cancelar
@@ -217,18 +241,18 @@ const UserProfilePage = () => {
                             <p className="mb-0">{comment.content}</p>
                           </div>
                           {comment.User?.id === user.user.id && (
-                            <div>
+                            <div className="d-flex align-items-center">
                               <button
-                                className="btn btn-outline-primary btn-sm me-2"
+                                className="btn btn-sm me-2 rounded-pill border shadow-none text-muted px-4 py-2"
                                 onClick={() => handleEditClick(comment)}
                               >
-                                ✎
+                                Editar
                               </button>
                               <button
-                                className="btn btn-outline-danger btn-sm"
+                                className="btn btn-sm me-2 rounded-pill border shadow-none text-muted px-4 py-2"
                                 onClick={() => handleDeleteComment(recipe.id, comment.id)}
                               >
-                                🗑
+                                Eliminar
                               </button>
                             </div>
                           )}
@@ -248,13 +272,13 @@ const UserProfilePage = () => {
                     }
                   ></textarea>
                   <button
-                    className="btn btn-primary btn-sm mt-2"
+                    className="btn btn-primary btn-sm mt-2 rounded-pill shadow-sm"
                     onClick={() =>
                       handleAddComment(recipe.id, newComments[recipe.id])
                     }
                     disabled={!newComments[recipe.id]}
                   >
-                    Agregar comentario
+                    Comentar
                   </button>
                 </div>
               </div>
