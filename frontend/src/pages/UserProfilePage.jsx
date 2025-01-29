@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import apiClient from '../api/axios';
 import { formatDistanceToNow } from 'date-fns';
@@ -9,9 +10,10 @@ const UserProfilePage = () => {
   const { user } = useContext(AuthContext);
   const [recipes, setRecipes] = useState([]);
   const [newComments, setNewComments] = useState({});
-  const [editingComment, setEditingComment] = useState(null); // Para manejar el estado de edición
+  const [editingComment, setEditingComment] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -38,13 +40,13 @@ const UserProfilePage = () => {
 
   const handleAddComment = async (recipeId, content) => {
     try {
-      const response = await apiClient.post(`/api/recipes/${recipeId}/comments`, { content });
+      const response = await apiClient.post('/comments', { recipeId, content });
       const newComment = response.data.comment;
 
       setRecipes((prev) =>
         prev.map((recipe) =>
           recipe.id === recipeId
-            ? { ...recipe, Comments: [...recipe.Comments, newComment] }
+            ? { ...recipe, Comments: [...recipe.Comments, { ...newComment, User: user.user }] }
             : recipe
         )
       );
@@ -56,7 +58,7 @@ const UserProfilePage = () => {
 
   const handleDeleteComment = async (recipeId, commentId) => {
     try {
-      await apiClient.delete(`/api/recipes/${recipeId}/comments/${commentId}`);
+      await apiClient.delete(`/comments/${commentId}`);
       setRecipes((prev) =>
         prev.map((recipe) =>
           recipe.id === recipeId
@@ -74,10 +76,7 @@ const UserProfilePage = () => {
 
   const handleEditComment = async (recipeId, commentId, content) => {
     try {
-      const response = await apiClient.put(`/api/recipes/${recipeId}/comments/${commentId}`, {
-        content,
-      });
-
+      const response = await apiClient.put(`/comments/${commentId}`, { content });
       const updatedComment = response.data.comment;
 
       setRecipes((prev) =>
@@ -86,13 +85,15 @@ const UserProfilePage = () => {
             ? {
                 ...recipe,
                 Comments: recipe.Comments.map((comment) =>
-                  comment.id === commentId ? updatedComment : comment
+                  comment.id === commentId
+                    ? { ...updatedComment, User: user.user }
+                    : comment
                 ),
               }
             : recipe
         )
       );
-      setEditingComment(null); // Salir del modo de edición
+      setEditingComment(null);
     } catch (error) {
       console.error('Error al editar comentario:', error);
     }
@@ -103,44 +104,75 @@ const UserProfilePage = () => {
     setEditContent(comment.content);
   };
 
+  const handleNavigateToFeed = () => {
+    navigate('/dashboard');
+  };
+
   if (loading) {
     return <div className="text-center mt-5">Cargando recetas...</div>;
   }
 
   return (
     <div className="container mt-5">
-      <h1 className="text-center">Perfil de {user.user.username}</h1>
-      <div className="row mt-4">
+      {/* Botón DelisHub */}
+      <div className="text-center mb-4">
+        <button
+          className="btn btn-outline-primary btn-lg fw-bold rounded-pill px-4 shadow-sm"
+          onClick={handleNavigateToFeed}
+          style={{
+            fontSize: '1.25rem',
+            letterSpacing: '0.5px',
+          }}
+        >
+          <span role="img" aria-label="home">
+            🍴
+          </span>{' '}
+          DelisHub
+        </button>
+      </div>
+
+      {/* Título del perfil */}
+      <h1 className="text-center mb-4">
+        <span className="fw-bold text-primary">Perfil de {user.user.username}</span>
+      </h1>
+
+      {/* Lista de recetas */}
+      <div className="row justify-content-center">
         {recipes.length === 0 ? (
           <div className="col-12 text-center">
-            <p>No has creado ninguna receta aún.</p>
+            <p className="text-muted">No has creado ninguna receta aún.</p>
           </div>
         ) : (
           recipes.map((recipe) => (
-            <div key={recipe.id} className="col-md-6 mb-4">
-              <div className="card">
+            <div key={recipe.id} className="col-md-8 mb-4">
+              <div className="card shadow-sm border-0">
                 <div className="card-body">
-                  <h5 className="card-title">{recipe.title}</h5>
-                  <p className="card-text">{recipe.description}</p>
-                  <p>
+                  <h5 className="card-title text-primary fw-bold">{recipe.title}</h5>
+                  <p className="card-text text-muted">{recipe.description}</p>
+                  <p className="small text-muted">
                     <strong>Publicado por:</strong> {recipe.user?.username || 'Desconocido'} -{' '}
                     {formatDistanceToNow(new Date(recipe.createdAt), { locale: es })}
                   </p>
-                  <h6>Ingredientes:</h6>
-                  <ul>
+                  <hr />
+                  <h6 className="fw-bold text-secondary">Ingredientes:</h6>
+                  <ul className="list-unstyled ps-3">
                     {recipe.ingredients.map((ingredient, index) => (
-                      <li key={index}>{ingredient}</li>
+                      <li key={index}>• {ingredient}</li>
                     ))}
                   </ul>
-                  <h6>Pasos:</h6>
-                  <ol>
+                  <h6 className="fw-bold text-secondary">Pasos:</h6>
+                  <ol className="ps-3">
                     {recipe.steps.map((step, index) => (
                       <li key={index}>{step}</li>
                     ))}
                   </ol>
-                  <h6>Comentarios:</h6>
+                  <hr />
+                  <h6 className="fw-bold text-secondary">Comentarios:</h6>
                   {recipe.Comments.map((comment) => (
-                    <div key={comment.id} className="d-flex align-items-start mb-2">
+                    <div
+                      key={comment.id}
+                      className="p-3 rounded bg-light shadow-sm mb-2 d-flex justify-content-between align-items-start"
+                    >
                       {editingComment === comment.id ? (
                         <div className="flex-grow-1">
                           <textarea
@@ -168,22 +200,33 @@ const UserProfilePage = () => {
                         </div>
                       ) : (
                         <>
-                          <div className="flex-grow-1">
-                            <strong>{comment.User?.username || 'Anónimo'}</strong>: {comment.content}
+                          <div>
+                            <p className="mb-1">
+                              <strong>{comment.User?.username || 'Anónimo'}</strong>{' '}
+                              <span className="text-muted small">
+                                -{' '}
+                                {new Date(comment.createdAt).toLocaleString('es-ES', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </p>
+                            <p className="mb-0">{comment.content}</p>
                           </div>
                           {comment.User?.id === user.user.id && (
-                            <div className="ms-2">
+                            <div>
                               <button
-                                className="btn btn-outline-primary btn-sm me-1"
+                                className="btn btn-outline-primary btn-sm me-2"
                                 onClick={() => handleEditClick(comment)}
                               >
                                 ✎
                               </button>
                               <button
                                 className="btn btn-outline-danger btn-sm"
-                                onClick={() =>
-                                  handleDeleteComment(recipe.id, comment.id)
-                                }
+                                onClick={() => handleDeleteComment(recipe.id, comment.id)}
                               >
                                 🗑
                               </button>
