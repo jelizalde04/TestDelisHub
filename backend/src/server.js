@@ -56,6 +56,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api', userProfileRoutes);
+app.use('/api/user-config', require('./routes/userConfigRoutes'));
+
 
 // Middleware de manejo de errores
 app.use(errorHandler);
